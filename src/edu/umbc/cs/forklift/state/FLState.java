@@ -158,7 +158,7 @@ public class FLState implements MutableOOState{
 		if(key.equals(CLASS_AGENT))
 			agent = (FLAgent) value;
 		else if(key.equals(CLASS_AREA))
-			goal = (FLArea) goal;
+			goal = (FLArea) value;
 		else if(key.equals(CLASS_WALL))
 			walls = (List<FLBlock>) value;
 		else if(key.equals(CLASS_BOX))

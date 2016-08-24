@@ -101,7 +101,7 @@ public class FLVisualizer {
 		public void paintObject(Graphics2D g2, OOState s, ObjectInstance ob, float cWidth, float cHeight) 
 		{
 			boolean o = (Boolean)ob.get(ATT_O);
-			if(imgPath.equals("none") && o == true)
+//			if(imgPath.equals("none") && o == true)
 			{
 				g2.setColor(Color.RED);
 				
@@ -120,7 +120,7 @@ public class FLVisualizer {
 				
 				g2.fill(new Rectangle2D.Double(rx, ry, rw, rl));
 			}
-			else
+//			else
 			{
 				
 			}

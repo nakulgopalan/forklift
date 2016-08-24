@@ -41,7 +41,7 @@ public class ForkliftClass {
 		
 		ArrayList<FLBlock> walls = new ArrayList<FLBlock>();
 		ArrayList<FLBlock> boxes = new ArrayList<FLBlock>(); 
-		FLBlock box = new FLBlock.FLBox(10.0, 10.0, 2, 2, "Boxer", false);
+		FLBlock box = new FLBlock.FLBox(10.0, 10.0, 1, 1, "Boxer", false);
 		boxes.add(box);
 
 		ArrayList<Point2D.Double> gaps = new ArrayList<Point2D.Double>();
@@ -95,37 +95,39 @@ public class ForkliftClass {
 		
 		
 		
-		TileCodingFeatures tilecoding = new TileCodingFeatures(inputFeatures);
-		tilecoding.addTilingsForAllDimensionsWithWidths(
-				new double []{xWidth, yWidth, velocityWidth, velocityWidth, angleVelocityWidth, angleWidth, yWidthRes, xWidthRes, magWidth},
-				nTilings,
-				TilingArrangement.RANDOM_JITTER);
+//		TileCodingFeatures tilecoding = new TileCodingFeatures(inputFeatures);
+//		tilecoding.addTilingsForAllDimensionsWithWidths(
+//				new double []{xWidth, yWidth, velocityWidth, velocityWidth, angleVelocityWidth, angleWidth, yWidthRes, xWidthRes, magWidth},
+//				nTilings,
+//				TilingArrangement.RANDOM_JITTER);
+//
+//		double defaultQ = 0.5;
+//		DifferentiableStateActionValue vfa = tilecoding.generateVFA(defaultQ/nTilings);
+//		GradientDescentSarsaLam ag = new GradientDescentSarsaLam(domain, 0.99, vfa, 0.02, 0.5);
+//
+//		List episodes = new ArrayList();
+//		for(int i = 0; i < 5000; i++){
+//			System.out.println("Starting episode");
+//			Episode ea = ag.runLearningEpisode(env);
+//			episodes.add(ea);
+//			System.out.println(i + ": " + ea.maxTimeStep());
+//			env.resetEnvironment();
+//		}
+//		new EpisodeSequenceVisualizer(v, domain, episodes);
 		
-		double defaultQ = 0.5;
-		DifferentiableStateActionValue vfa = tilecoding.generateVFA(defaultQ/nTilings);
-		GradientDescentSarsaLam ag = new GradientDescentSarsaLam(domain, 0.99, vfa, 0.02, 0.5);
-		
-		List episodes = new ArrayList();
-		for(int i = 0; i < 5000; i++){
-			System.out.println("Starting episode");
-			Episode ea = ag.runLearningEpisode(env);
-			episodes.add(ea);
-			System.out.println(i + ": " + ea.maxTimeStep());
-			env.resetEnvironment();
-		}
-		new EpisodeSequenceVisualizer(v, domain, episodes);
-		
-		/*SparseSampling ss = new SparseSampling(domain, 1, new SimpleHashableStateFactory(), 2, 1);
-		ss.setForgetPreviousPlanResults(true);
-		ss.toggleDebugPrinting(true);
-		Policy p = new GreedyQPolicy(ss);
-		
-		Episode e = PolicyUtils.rollout(p, state, domain.getModel(), 1000);
-		System.out.println("Num steps: " + e.maxTimeStep());
-		
-		new EpisodeSequenceVisualizer(v, domain, Arrays.asList(e));
+//		SparseSampling ss = new SparseSampling(domain, 1, new SimpleHashableStateFactory(), 2, 1);
+//		ss.setForgetPreviousPlanResults(true);
+//		ss.toggleDebugPrinting(true);
+//		Policy p = new GreedyQPolicy(ss);
+//
+//		Episode e = PolicyUtils.rollout(p, state, domain.getModel(), 1000);
+//		System.out.println("Num steps: " + e.maxTimeStep());
+//
+//		new EpisodeSequenceVisualizer(v, domain, Arrays.asList(e));
 	
-		StateGenerator rStateGen
+//		StateGenerator rStateGen
+
+		System.out.println(state.toString());
 		VisualExplorer exp = new VisualExplorer(domain, env, v);
 
 		exp.addKeyAction("w", forklift.MOVE_FORWARD, "");
@@ -137,7 +139,7 @@ public class ForkliftClass {
 		exp.addKeyAction("q", forklift.PICKUP, "");
 		exp.addKeyAction("e", forklift.DROP, "");
 
-		exp.initGUI();*/
+		exp.initGUI();
 		
 	}
 	
