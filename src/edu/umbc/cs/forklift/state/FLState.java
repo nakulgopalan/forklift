@@ -166,6 +166,35 @@ public class FLState implements MutableOOState{
 			boxes = (List<FLBlock>) value;
 		return this;
 	}
-	
+
+	public FLAgent touchAgent(){
+		this.agent = agent.copy();
+		return this.agent;
+	}
+
+	public List<FLBlock> touchWalls(){
+		this.walls = new ArrayList<>(walls);
+		return walls;
+	}
+
+	public List<FLBlock> touchBoxes(){
+		this.boxes = new ArrayList<>(boxes);
+		return boxes;
+	}
+
+
+	public FLBlock touchWall(int ind){
+		FLBlock n = walls.get(ind).copy();
+		touchWalls().remove(ind);
+		walls.add(ind, n);
+		return n;
+	}
+
+	public FLBlock touchBox(int ind){
+		FLBlock n = boxes.get(ind).copy();
+		touchBoxes().remove(ind);
+		boxes.add(ind, n);
+		return n;
+	}
 
 }

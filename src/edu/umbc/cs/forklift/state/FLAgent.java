@@ -18,8 +18,10 @@ import java.util.List;
 
 import burlap.mdp.core.oo.state.OOStateUtilities;
 import burlap.mdp.core.oo.state.ObjectInstance;
+import burlap.mdp.core.state.annotations.ShallowCopyState;
 import edu.umbc.cs.forklift.state.FLBlock.FLBox;
 
+@ShallowCopyState
 public class FLAgent implements ObjectInstance {
 
 	/**
