@@ -22,17 +22,20 @@ import edu.umbc.cs.forklift.state.FLBlock.FLBox;
 
 public class FLAgent implements ObjectInstance {
 
-	private double direction;
-	private double x;
-	private double y;
-	private double yLength;
-	private double xWidth;
-	private double vx;
-	private double vy;
-	private double vr;
-	private String name;
-	private FLBox grabbed;
-	private double vm;
+	/**
+	 * x and y co-ordinates are the center of the agent
+	 */
+	public  double direction;
+	public double x;
+	public  double y;
+	public  double yLength;
+	public  double xWidth;
+	public  double vx;
+	public  double vy;
+	public  double vr;
+	public  String name;
+	public  FLBox grabbed;
+	public  double vm;
 	
 	private static final List<Object> keys = 
 	Arrays.<Object>asList(ATT_X, ATT_Y, 

@@ -16,9 +16,17 @@ import burlap.behavior.policy.PolicyUtils;
 import burlap.behavior.singleagent.Episode;
 import burlap.behavior.singleagent.auxiliary.EpisodeSequenceVisualizer;
 import burlap.behavior.singleagent.learning.tdmethods.vfa.GradientDescentSarsaLam;
+import burlap.behavior.singleagent.planning.deterministic.uninformed.bfs.BFS;
+import burlap.behavior.singleagent.planning.stochastic.rtdp.BoundedRTDP;
 import burlap.behavior.singleagent.planning.stochastic.sparsesampling.SparseSampling;
+import burlap.behavior.singleagent.planning.vfa.fittedvi.FittedVI;
+import burlap.behavior.valuefunction.ConstantValueFunction;
 import burlap.mdp.auxiliary.StateGenerator;
+import burlap.mdp.auxiliary.stateconditiontest.StateConditionTest;
+import burlap.mdp.core.TerminalFunction;
+import burlap.mdp.core.state.State;
 import burlap.mdp.singleagent.SADomain;
+import burlap.mdp.singleagent.common.UniformCostRF;
 import burlap.mdp.singleagent.environment.SimulatedEnvironment;
 import burlap.mdp.singleagent.oo.OOSADomain;
 import burlap.shell.visual.VisualExplorer;
@@ -34,14 +42,15 @@ public class ForkliftClass {
 
 	public static void main(String [] args){
 
-		forklift gen = new forklift();
+		forklift gen = new forklift(new UniformCostRF(), new AreaTerminationFunction());
 		SADomain domain = gen.generateDomain();
 
-		FLAgent agent = new FLAgent(2.5, 2.0, 0, 0, 0, 0, 1, 2,"agent", null, 0);
+		FLAgent agent = new FLAgent(1.6, 1.6, 0, 0, 0, 0, 1, 1,"agent", null, 0);
+		FLArea goalArea = new FLArea(2.5, 2.0, 0., 3.0, "goal"); // 3, 2, 2, 2
 		
 		ArrayList<FLBlock> walls = new ArrayList<FLBlock>();
 		ArrayList<FLBlock> boxes = new ArrayList<FLBlock>(); 
-		FLBlock box = new FLBlock.FLBox(10.0, 10.0, 1, 1, "Boxer", false);
+		FLBlock box = new FLBlock.FLBox(10.0, 10.0, 1, 1, "Boxer", true);
 		boxes.add(box);
 
 		ArrayList<Point2D.Double> gaps = new ArrayList<Point2D.Double>();
@@ -64,35 +73,66 @@ public class ForkliftClass {
 		walls.addAll(GenerateRoom(0,20,20,39,gaps));
 		//use wally for testing 
 		//walls.add(new FLBlock.FLWall(0, 0, 0, 0, "Wally"));
-		FLArea goalArea = new FLArea(20.0, 39.0, 20.0, 0.0, "goal");
+
+
+
 
 
 		FLState state = new FLState(agent, walls, boxes, goalArea);
 		System.out.println(domain.getModel().terminal(state));
 		SimulatedEnvironment env = new SimulatedEnvironment(domain, state);
+
+
+		SimpleHashableStateFactory shf = new SimpleHashableStateFactory(false);
+
+		StateConditionTest sc = new StateConditionTest() {
+			@Override
+			public boolean satisfies(State s) {
+				return new AreaTerminationFunction().isTerminal(s);
+			}
+		};
+
+
+		Visualizer flv = new FLVisualizer().getVisualizer();
+
+		if(true) {
+//		BFS planner = new BFS(domain, sc, shf);
+
+//			FittedVI
+
+			BoundedRTDP planner = new BoundedRTDP(domain, 0.99, shf,
+					new ConstantValueFunction(-100.), new ConstantValueFunction(0.), 0.2, 400);
+			planner.setMaxRolloutDepth(25);
+
+			Policy policy = planner.planFromState(state);
+			Episode episode = PolicyUtils.rollout(policy, env, 100);
+//		System.out.println("Terminated correctly: " + new AreaTerminationFunction().isTerminal(episode.state(episode.stateSequence.size()-1)));
+//		System.out.println("episode size: " +episode.stateSequence.size());
+//		System.out.println("State:" + episode.state(episode.stateSequence.size()-1).toString());
+//
+//
+			new EpisodeSequenceVisualizer(flv, domain, Arrays.asList(episode));
+		}
 		
-		FLVisualizer flv = new FLVisualizer();
-		Visualizer v = flv.getVisualizer();
-		
-		ConcatenatedObjectFeatures inputFeatures = new ConcatenatedObjectFeatures()
-				.addObjectVectorizion(forklift.CLASS_AGENT, new NumericVariableFeatures());
-				/*.addObjectVectorizion(forklift.CLASS_AREA, new NumericVariableFeatures())
-				.addObjectVectorizion(forklift.CLASS_BLOCK, new NumericVariableFeatures())
-				.addObjectVectorizion(forklift.CLASS_BOX, new NumericVariableFeatures())
-				.addObjectVectorizion(forklift.CLASS_WALL, new NumericVariableFeatures());
-*/
-		int nTilings = 9;
-		double resolution = 10.;
-		
-		double xWidth = (forklift.xBound) / resolution;
-		double yWidth = (forklift.yBound) / resolution;
-		double velocityWidth = 40 / resolution;
-		double angleVelocityWidth = 60 / resolution;
-		double angleWidth = 360 / resolution;
-		double xWidthRes = 2 / resolution;
-		double yWidthRes = 1 / resolution;
-		double magWidth = velocityWidth * velocityWidth;
-		
+//		ConcatenatedObjectFeatures inputFeatures = new ConcatenatedObjectFeatures()
+//				.addObjectVectorizion(forklift.CLASS_AGENT, new NumericVariableFeatures());
+//				/*.addObjectVectorizion(forklift.CLASS_AREA, new NumericVariableFeatures())
+//				.addObjectVectorizion(forklift.CLASS_BLOCK, new NumericVariableFeatures())
+//				.addObjectVectorizion(forklift.CLASS_BOX, new NumericVariableFeatures())
+//				.addObjectVectorizion(forklift.CLASS_WALL, new NumericVariableFeatures());
+//*/
+//		int nTilings = 9;
+//		double resolution = 10.;
+//
+//		double xWidth = (forklift.xBound) / resolution;
+//		double yWidth = (forklift.yBound) / resolution;
+//		double velocityWidth = 40 / resolution;
+//		double angleVelocityWidth = 60 / resolution;
+//		double angleWidth = 360 / resolution;
+//		double xWidthRes = 2 / resolution;
+//		double yWidthRes = 1 / resolution;
+//		double magWidth = velocityWidth * velocityWidth;
+//
 		
 		
 //		TileCodingFeatures tilecoding = new TileCodingFeatures(inputFeatures);
@@ -127,8 +167,9 @@ public class ForkliftClass {
 	
 //		StateGenerator rStateGen
 
-		System.out.println(state.toString());
-		VisualExplorer exp = new VisualExplorer(domain, env, v);
+//		System.out.println(state.toString());
+		else{
+		VisualExplorer exp = new VisualExplorer(domain, env, flv);
 
 		exp.addKeyAction("w", forklift.MOVE_FORWARD, "");
 		exp.addKeyAction("s", forklift.MOVE_BACKWARD, "");
@@ -136,10 +177,11 @@ public class ForkliftClass {
 		exp.addKeyAction("a", forklift.ROTATE_COUNTERCLOCKWISE, "");
 		exp.addKeyAction(" ", forklift.BRAKE, "");
 		exp.addKeyAction("x", forklift.IDLE, "");
-		exp.addKeyAction("q", forklift.PICKUP, "");
-		exp.addKeyAction("e", forklift.DROP, "");
+//		exp.addKeyAction("q", forklift.PICKUP, "");
+//		exp.addKeyAction("e", forklift.DROP, "");
 
 		exp.initGUI();
+		}
 		
 	}
 	
@@ -190,5 +232,28 @@ public class ForkliftClass {
 	{
 		
 
+	}
+
+	public static class AreaTerminationFunction implements TerminalFunction{
+
+		@Override
+		public boolean isTerminal(State s) {
+			FLAgent agent = (FLAgent) s.get(forklift.CLASS_AGENT);
+			FLArea area = (FLArea) s.get(forklift.CLASS_AREA);
+
+			double ax = (Double)agent.get(forklift.ATT_X);
+			double ay = (Double)agent.get(forklift.ATT_Y);
+
+			double bottomLeftX = (Double)area.get(forklift.ATT_X);
+			double botthmLefty = (Double)area.get(forklift.ATT_Y);
+			double xWidth = (Double)area.get(forklift.ATT_W);
+			double yHeight = (Double)area.get(forklift.ATT_L);
+
+			if((ax<bottomLeftX+xWidth) && (ax>bottomLeftX) && (ay>botthmLefty) && (ay<botthmLefty+yHeight)){
+				return true;
+			}
+
+			return false;
+		}
 	}
 }

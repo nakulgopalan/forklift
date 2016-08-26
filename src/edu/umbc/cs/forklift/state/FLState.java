@@ -17,13 +17,14 @@ import static edu.umbc.cs.forklift.forklift.*;
 
 public class FLState implements MutableOOState{
 	
-	FLAgent agent;
-	List <FLBlock> walls;
-	List <FLBlock> boxes;
-	FLArea goal;
+	public FLAgent agent;
+	public List <FLBlock> walls;
+	public List <FLBlock> boxes;
+	public FLArea goal;
 
-	private static final List<Object> keys = Arrays.<Object>asList(CLASS_AGENT,CLASS_WALL,CLASS_BOX);
-	
+	public static final List<Object> keys = Arrays.<Object>asList(CLASS_AGENT,CLASS_WALL,CLASS_BOX);
+
+
 	public FLState(){
 		walls = new ArrayList<FLBlock>();
 		boxes = new ArrayList<FLBlock>();
@@ -51,7 +52,7 @@ public class FLState implements MutableOOState{
 	}
 	
 	public String toString() {
-		return OOStateUtilities.ooStateToString(this);
+		return "";//OOStateUtilities.ooStateToString(this);
 	}
 
 	//TODO when FLState is more object oriented, fill these out

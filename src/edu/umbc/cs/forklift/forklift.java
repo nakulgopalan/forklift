@@ -12,6 +12,7 @@ import burlap.mdp.auxiliary.DomainGenerator;
 import burlap.mdp.auxiliary.StateGenerator;
 import burlap.mdp.auxiliary.common.SinglePFTF;
 import burlap.mdp.auxiliary.stateconditiontest.StateConditionTest;
+import burlap.mdp.core.StateTransitionProb;
 import burlap.mdp.core.TerminalFunction;
 import burlap.mdp.core.action.Action;
 import burlap.mdp.core.action.ActionType;
@@ -28,6 +29,7 @@ import burlap.mdp.singleagent.environment.EnvironmentOutcome;
 import burlap.mdp.singleagent.model.FactoredModel;
 import burlap.mdp.singleagent.model.RewardFunction;
 import burlap.mdp.singleagent.model.SampleModel;
+import burlap.mdp.singleagent.model.statemodel.FullStateModel;
 import burlap.mdp.singleagent.model.statemodel.SampleStateModel;
 import burlap.mdp.singleagent.oo.OOSADomain;
 import edu.umbc.cs.forklift.state.FLAgent;
@@ -68,10 +70,10 @@ public class forklift implements DomainGenerator{
 	public static final String CLASS_AREA = "area";
 	public static final String BOXES_IN_AREA = "depot";
 
-	
+
 	public static final double xBound = 40;
 	public static final double yBound = 40;
-	
+
 	protected RewardFunction rf;
 	protected TerminalFunction tf;
 	static double forwardAccel = .05;
@@ -81,19 +83,27 @@ public class forklift implements DomainGenerator{
 	static double rotFriction = 1;
 	static double brakeFriction = .05;
 	static double brakeRotFriction = 5;
-	
+
 	public List<Double> goalArea; //xmin,xmax,ymin,ymax
-	
+
 	public static int captured = 0;
-	
+
 	public forklift()
 	{
+
 	}
+
+	public forklift(RewardFunction rf, TerminalFunction tf)
+	{
+		this.rf = rf;
+		this.tf = tf;
+	}
+
 	public List<PropositionalFunction> generatePfs(){
 		return Arrays.asList(
 				(PropositionalFunction)new BoxesInArea(forklift.BOXES_IN_AREA));
 	}
-	
+
 	public TerminalFunction getTf() {
 		return tf;
 	}
@@ -109,43 +119,48 @@ public class forklift implements DomainGenerator{
 	public void setRf(RewardFunction rf) {
 		this.rf = rf;
 	}
-	
+
 	public OOSADomain generateDomain() {
-		
+
 		OOSADomain domain = new OOSADomain();
 		OODomain.Helper.addPfsToDomain(domain, this.generatePfs());
-	
+
 		domain.addStateClass(CLASS_AGENT, FLAgent.class)
 //this will have marginal utility, and should be supported in FLState
 //		.addStateClass(CLASS_BLOCK, FLBlock.class)
-		.addStateClass(CLASS_WALL, FLBlock.FLWall.class)
-		.addStateClass(CLASS_BOX, FLBlock.FLBox.class);
-		
-		domain.addActionTypes(new UniversalActionType(MOVE_FORWARD), 
+				.addStateClass(CLASS_WALL, FLBlock.FLWall.class)
+				.addStateClass(CLASS_BOX, FLBlock.FLBox.class);
+
+		domain.addActionTypes(new UniversalActionType(MOVE_FORWARD),
 				new UniversalActionType(MOVE_BACKWARD),
 				new UniversalActionType(ROTATE_CLOCKWISE),
 				new UniversalActionType(ROTATE_COUNTERCLOCKWISE),
 				new UniversalActionType(BRAKE),
-				new UniversalActionType(PICKUP),
-				new UniversalActionType(DROP),
+//				new UniversalActionType(PICKUP),
+//				new UniversalActionType(DROP),
 				new UniversalActionType(IDLE)
-				);
-		
+		);
+
+		if(rf==null){
+			rf = new SingleGoalPFRF(domain.propFunction(forklift.BOXES_IN_AREA));
+		}
+		if(tf==null){
+			tf = new SinglePFTF(domain.propFunction(forklift.BOXES_IN_AREA));
+		}
+
 		FLModel fmodel = new FLModel(forwardAccel, backwardAccel, rotAccel);
-		RewardFunction rf = new SingleGoalPFRF(domain.propFunction(forklift.BOXES_IN_AREA));
-		TerminalFunction tf = new SinglePFTF(domain.propFunction(forklift.BOXES_IN_AREA));
 		FactoredModel factorModel = new FactoredModel(fmodel, rf, tf);
 		domain.setModel(factorModel);
-		
+
 		return domain;
 	}
-	
-	public static class FLModel implements SampleStateModel
+
+	public static class FLModel implements FullStateModel
 	{
 		double forwardAcceleration;
 		double backwardAcceleration;
 		double rotationalAcceleration;
-		
+
 		public FLModel(double fAcc, double bAcc, double rAcc)
 		{
 			this.forwardAcceleration= fAcc;
@@ -154,7 +169,7 @@ public class forklift implements DomainGenerator{
 		}
 
 		public State move(State s, Action a) {
-			
+
 			double realForwardAccel = 0.0;
 			double realClockRotateAccel = 0.0;
 			double fric =friction;
@@ -170,11 +185,11 @@ public class forklift implements DomainGenerator{
 			double l = (Double)agent.get(ATT_L);
 			FLBox b = agent.getGrabbed();
 			double vMag = (Double)agent.get(ATT_VM);
-			
+
 			String actionName = a.actionName();
 			//check for new acceleration actions
 			if(actionName.startsWith(PREFIX_ROTATE_ACCEL)){
-				
+
 				if(actionName.equals(ROTATE_CLOCKWISE))
 					realClockRotateAccel-=rotationalAcceleration;
 				else if(actionName.equals(ROTATE_COUNTERCLOCKWISE))
@@ -194,25 +209,25 @@ public class forklift implements DomainGenerator{
 				rfric = brakeRotFriction;
 			}else if(actionName.equals(DROP)){
 				//System.out.println("dropping");
-				
+
 				if(vMag < 0.6 && vr < 2)
+				{
+					if(b != null)
 					{
-						if(b != null)
+						Double dx = Math.cos(Math.toRadians(360-direction)) * w/2 + Math.cos(Math.toRadians(450-direction)) * l/2;
+						Double dy = Math.sin(Math.toRadians(360-direction)) * w/2 + Math.sin(Math.toRadians(450-direction)) * l/2;
+						if(!objectCollisionCheck(s, px + dx, py + dy, (Double)b.get(ATT_L), (Double)b.get(ATT_W)))
 						{
-							Double dx = Math.cos(Math.toRadians(360-direction)) * w/2 + Math.cos(Math.toRadians(450-direction)) * l/2;
-							Double dy = Math.sin(Math.toRadians(360-direction)) * w/2 + Math.sin(Math.toRadians(450-direction)) * l/2;
-							if(!objectCollisionCheck(s, px + dx, py + dy, (Double)b.get(ATT_L), (Double)b.get(ATT_W)))
-							{
-								b.putDown();
-								@SuppressWarnings("unchecked")
-								List<FLBlock> boxes = (List<FLBlock>)s.get(CLASS_BOX);
-								boxes.remove(b);
-								FLBox box = new FLBox(px + dx, py + dy, (Double)b.get(ATT_L), (Double)b.get(ATT_W), (String) b.name(), true);
-								boxes.add(box);
-								((FLState) s).set(CLASS_BOX,boxes);
-								b = null;
-								//System.out.println("dropped");
-							}
+							b.putDown();
+							@SuppressWarnings("unchecked")
+							List<FLBlock> boxes = (List<FLBlock>)s.get(CLASS_BOX);
+							boxes.remove(b);
+							FLBox box = new FLBox(px + dx, py + dy, (Double)b.get(ATT_L), (Double)b.get(ATT_W), (String) b.name(), true);
+							boxes.add(box);
+							((FLState) s).set(CLASS_BOX,boxes);
+							b = null;
+							//System.out.println("dropped");
+						}
 					}
 				}
 			}
@@ -235,11 +250,11 @@ public class forklift implements DomainGenerator{
 			//calculate acceleration based on input
 			//friction is modeled as an acceleration
 			//in the opposite direction of velocity
-			//TODO add dynamic friction as a function of velocity on top
-			
+			//TODO add dynamic friction as a function of velocity on y
+
 			//for some reason this makes it clockwise
 			vr -= realClockRotateAccel;
-			
+
 			if (vr >= rfric)
 				vr -= rfric;
 			else if(vr <= -rfric)
@@ -252,7 +267,7 @@ public class forklift implements DomainGenerator{
 				direction += 360;
 			//now that the real accelerations are calculated
 			//calculate the old real velocity
-			
+
 			double oldVelocity = vMag;
 			double newVelocity = oldVelocity+realForwardAccel;
 			if (newVelocity >=  fric)
@@ -265,7 +280,7 @@ public class forklift implements DomainGenerator{
 			vy = (double) (Math.sin(Math.toRadians(360-direction)) * newVelocity);
 			double npx = px+vx;
 			double npy = py+vy;
-			
+
 			if(agentCollisionCheck(s, npx, npy, w, l, direction) == false){
 				FLAgent newAgent = new FLAgent(npx, npy, vx, vy, vr, direction, l, w, "agent", b, newVelocity);
 				((MutableOOState) s).set(CLASS_AGENT, newAgent);
@@ -281,13 +296,13 @@ public class forklift implements DomainGenerator{
 
 		public State sample(State s, Action a) {
 			s = s.copy();
- 			return move(s, a);
+			return move(s, a);
 		}
 
 		public boolean terminal(State s) {
 			return false;
 		}
-		
+
 		public boolean agentCollisionCheck(State s, double x, double y, double w, double l, double direction)
 		{
 			//System.out.println("\nCOLLISIONS!! \n");
@@ -302,7 +317,7 @@ public class forklift implements DomainGenerator{
 			y3 = y - Math.sin(Math.toRadians(360-direction)) * w/2 + Math.sin(Math.toRadians(450-direction)) * l/2;
 			x4 = x - Math.cos(Math.toRadians(360-direction)) * w/2 - Math.cos(Math.toRadians(450-direction)) * l/2;
 			y4 = y - Math.sin(Math.toRadians(360-direction)) * w/2 - Math.sin(Math.toRadians(450-direction)) * l/2;
-			
+
 			for(ObjectInstance block: blocks)
 			{
 				if(block.className() == CLASS_BOX)
@@ -314,27 +329,27 @@ public class forklift implements DomainGenerator{
 				double blockL = (Double)block.get(ATT_L);
 				//System.out.println(blockW + "  "  + blockL);
 				ArrayList<Point2D.Double> forkliftPoints = new ArrayList<Point2D.Double>();
-				
+
 				forkliftPoints.add(new Point2D.Double(x1, y1));
 				forkliftPoints.add(new Point2D.Double(x2, y2));
 				forkliftPoints.add(new Point2D.Double(x3, y3));
 				forkliftPoints.add(new Point2D.Double(x4, y4));
-				
+
 				ArrayList<Point2D.Double> blockPoints = new ArrayList<Point2D.Double>();
-				
+
 				blockPoints.add(new Point2D.Double(blockX, blockY));
 				blockPoints.add(new Point2D.Double(blockX, blockY + blockL));
 				blockPoints.add(new Point2D.Double(blockX + blockW, blockY));
 				blockPoints.add(new Point2D.Double(blockX + blockW, blockY + blockL));
-				
+
 				double dw1 = Math.abs(Math.cos(Math.toRadians(360-direction)) * w/2 + Math.cos(Math.toRadians(450-direction)) * l/2);
 				double dw2 = Math.abs(Math.cos(Math.toRadians(360-direction)) * w/2 - Math.cos(Math.toRadians(450-direction)) * l/2);
-				
+
 				double dl1 = Math.abs(Math.sin(Math.toRadians(360-direction)) * w/2 + Math.sin(Math.toRadians(450-direction)) * l/2);
 				double dl2 = Math.abs(Math.sin(Math.toRadians(360-direction)) * w/2 - Math.sin(Math.toRadians(450-direction)) * l/2);
-				
+
 				double dw, dl;
-				
+
 				if(dl1 > dl2)
 					dl = dw1;
 				else
@@ -343,14 +358,14 @@ public class forklift implements DomainGenerator{
 					dw = dw1;
 				else
 					dw = dw2;
-				
+
 				double blockCenterX = blockX + blockW/2;
 				double blockCenterY = blockY + blockL/2;
-				
+
 				double dx = Math.abs(x - blockCenterX);
 				double dy = Math.abs(y - blockCenterY);
-				
-				if(dx < blockW + dw*2 && dy < blockL + dl*2){ 
+
+				if(dx < blockW + dw*2 && dy < blockL + dl*2){
 					//System.out.println(x + " " + y);
 					//System.out.println(blockX + " " + blockY);
 					if(checkSingleCollision(forkliftPoints, blockPoints))
@@ -361,12 +376,12 @@ public class forklift implements DomainGenerator{
 			}
 			return false;
 		}
-		
+
 		public boolean objectCollisionCheck(State s, double x, double y, double l, double w)
 		{
 			List<ObjectInstance> blocks =  ((MutableOOState) s).objectsOfClass(CLASS_WALL);
 			blocks.addAll(((MutableOOState) s).objectsOfClass(CLASS_BOX));
-			
+
 			for(ObjectInstance block: blocks)
 			{
 				if(block.className() == CLASS_BOX)
@@ -376,33 +391,33 @@ public class forklift implements DomainGenerator{
 				double blockY = (Double)block.get(ATT_Y);
 				double blockW = (Double)block.get(ATT_W);
 				double blockL = (Double)block.get(ATT_L);
-				
+
 				ArrayList<Point2D.Double> boxPoints = new ArrayList<Point2D.Double>();
-				
+
 				boxPoints.add(new Point2D.Double(x, y));
 				boxPoints.add(new Point2D.Double(x, y + l));
 				boxPoints.add(new Point2D.Double(x + w, y));
 				boxPoints.add(new Point2D.Double(x + w, y + l));
-				
+
 				ArrayList<Point2D.Double> blockPoints = new ArrayList<Point2D.Double>();
-				
+
 				blockPoints.add(new Point2D.Double(blockX, blockY));
 				blockPoints.add(new Point2D.Double(blockX, blockY + blockL));
 				blockPoints.add(new Point2D.Double(blockX + blockW, blockY));
 				blockPoints.add(new Point2D.Double(blockX + blockW, blockY + blockL));
-				
+
 				double boxCenterX = x + w/2;
 				double boxCenterY = y + l/2;
-				
+
 				double blockCenterX = blockX + blockW/2;
 				double blockCenterY = blockY + blockL/2;
-				
+
 				double dx = Math.abs(boxCenterX - blockCenterX);
 				double dy = Math.abs(boxCenterY - blockCenterY);
-				
+
 				//double dist = Math.sqrt(dx * dx + dy * dy);
-				
-				if(dx < blockW + w && dy < blockY + y){ 
+
+				if(dx < blockW + w && dy < blockY + y){
 					if(checkSingleCollision(boxPoints, blockPoints))
 					{
 						return true;
@@ -412,16 +427,16 @@ public class forklift implements DomainGenerator{
 			return false;
 
 		}
-		
+
 		public boolean checkSingleCollision(List<Point2D.Double> ob1, List<Point2D.Double> ob2)
 		{
-			ArrayList<Line2D.Double> ob1Sides = new ArrayList<Line2D.Double>(); 
+			ArrayList<Line2D.Double> ob1Sides = new ArrayList<Line2D.Double>();
 			ob1Sides.add(new Line2D.Double(ob1.get(0), ob1.get(1)));
 			ob1Sides.add(new Line2D.Double(ob1.get(0), ob1.get(2)));
 			ob1Sides.add(new Line2D.Double(ob1.get(1), ob1.get(3)));
 			ob1Sides.add(new Line2D.Double(ob1.get(2), ob1.get(3)));
-			
-			ArrayList<Line2D.Double> ob2Sides = new ArrayList<Line2D.Double>(); 
+
+			ArrayList<Line2D.Double> ob2Sides = new ArrayList<Line2D.Double>();
 			ob2Sides.add(new Line2D.Double(ob2.get(0), ob2.get(1)));
 			ob2Sides.add(new Line2D.Double(ob2.get(0), ob2.get(2)));
 			ob2Sides.add(new Line2D.Double(ob2.get(1), ob2.get(3)));
@@ -448,7 +463,7 @@ public class forklift implements DomainGenerator{
 					vectorX = 2;
 					vectorY = 0;
 				}
-				
+
 				ArrayList<Point2D.Double> projOb2 = new ArrayList<Point2D.Double>();
 				for(Point2D corner: ob2){
 					double vectorDotCorner = vectorX * corner.getX() + vectorY * corner.getY();
@@ -456,7 +471,7 @@ public class forklift implements DomainGenerator{
 					double scalar = vectorDotCorner / vectorDotVector;
 					projOb2.add(new Point2D.Double(vectorX * scalar, vectorY * scalar ));
 				}
-				
+
 				ArrayList<Point2D.Double> projOb1 = new ArrayList<Point2D.Double>();
 				for(Point2D corner: ob1){
 					double vectorDotCorner = vectorX * corner.getX() + vectorY * corner.getY();
@@ -475,7 +490,7 @@ public class forklift implements DomainGenerator{
 					//System.out.println(" ");
 					//System.out.print(mag + " ");
 				}
-				
+
 				double blockMax = 0.0, blockMin = 80.0;
 				for(Point2D proj: projOb2){
 					double mag = Math.sqrt(proj.getX()*proj.getX() + proj.getY()*proj.getY());
@@ -485,7 +500,7 @@ public class forklift implements DomainGenerator{
 						blockMin = mag;
 					//System.out.println(mag);
 				}
-				if((blockMin > forkliftMin && blockMin < forkliftMax) || 
+				if((blockMin > forkliftMin && blockMin < forkliftMax) ||
 						(blockMax > forkliftMin && blockMax < forkliftMax)||
 						(forkliftMax > blockMin && forkliftMax < blockMax)||
 						(forkliftMin > blockMin && forkliftMin < blockMax)){
@@ -513,7 +528,7 @@ public class forklift implements DomainGenerator{
 					vectorX = 2;
 					vectorY = 0;
 				}
-				
+
 				ArrayList<Point2D.Double> projOb2 = new ArrayList<Point2D.Double>();
 				for(Point2D corner: ob2){
 					double vectorDotCorner = vectorX * corner.getX() + vectorY * corner.getY();
@@ -521,7 +536,7 @@ public class forklift implements DomainGenerator{
 					double scalar = vectorDotCorner / vectorDotVector;
 					projOb2.add(new Point2D.Double(vectorX * scalar, vectorY * scalar ));
 				}
-				
+
 				ArrayList<Point2D.Double> projOb1 = new ArrayList<Point2D.Double>();
 				for(Point2D corner: ob1){
 					double vectorDotCorner = vectorX * corner.getX() + vectorY * corner.getY();
@@ -540,7 +555,7 @@ public class forklift implements DomainGenerator{
 					//System.out.println(" ");
 					//System.out.print(mag + " ");
 				}
-				
+
 				double blockMax = 0.0, blockMin = 80.0;
 				for(Point2D proj: projOb2){
 					double mag = Math.sqrt(proj.getX()*proj.getX() + proj.getY()*proj.getY());
@@ -550,7 +565,7 @@ public class forklift implements DomainGenerator{
 						blockMin = mag;
 					//System.out.println(mag);
 				}
-				if((blockMin > forkliftMin && blockMin < forkliftMax) || 
+				if((blockMin > forkliftMin && blockMin < forkliftMax) ||
 						(blockMax > forkliftMin && blockMax < forkliftMax)||
 						(forkliftMax > blockMin && forkliftMax < blockMax)||
 						(forkliftMin > blockMin && forkliftMin < blockMax)){
@@ -562,11 +577,11 @@ public class forklift implements DomainGenerator{
 			}
 			return false;
 		}
-		
+
 		public FLBlock.FLBox pickup(State s, double x, double y, double w, double l, double direction)
 		{
 			List<ObjectInstance> blocks = ((MutableOOState) s).objectsOfClass(CLASS_BOX);
-			ArrayList<Line2D.Double> test = new ArrayList<Line2D.Double>(); 
+			ArrayList<Line2D.Double> test = new ArrayList<Line2D.Double>();
 			Double x1, x2, x3, x4, y1, y2, y3, y4;
 			/*
 			Double dx = Math.cos(Math.toRadians(360-direction)) * w/2 + Math.cos(Math.toRadians(450-direction)) * l/2;
@@ -592,27 +607,27 @@ public class forklift implements DomainGenerator{
 			//test.add(new Line2D.Double(x3, y3, x4, y4));
 			for(ObjectInstance block: blocks)
 			{
-				
+
 				double blockX = (Double)block.get(ATT_X);
 				double blockY = (Double)block.get(ATT_Y);
 				double blockW = (Double)block.get(ATT_W);
 				double blockL = (Double)block.get(ATT_L);
 				//System.out.println(blockW + "  "  + blockL);
 				ArrayList<Point2D.Double> forkliftPoints = new ArrayList<Point2D.Double>();
-				
+
 				forkliftPoints.add(new Point2D.Double(x1, y1));
 				forkliftPoints.add(new Point2D.Double(x2, y2));
 				forkliftPoints.add(new Point2D.Double(x3, y3));
 				forkliftPoints.add(new Point2D.Double(x4, y4));
-				
+
 				ArrayList<Point2D.Double> blockPoints = new ArrayList<Point2D.Double>();
-				
+
 				blockPoints.add(new Point2D.Double(blockX, blockY));
 				blockPoints.add(new Point2D.Double(blockX, blockY + blockL));
 				blockPoints.add(new Point2D.Double(blockX + blockW, blockY));
 				blockPoints.add(new Point2D.Double(blockX + blockW, blockY + blockL));
-				
-				ArrayList<Line2D.Double> blockSides = new ArrayList<Line2D.Double>(); 
+
+				ArrayList<Line2D.Double> blockSides = new ArrayList<Line2D.Double>();
 				blockSides.add(new Line2D.Double(blockPoints.get(0),blockPoints.get(1)));
 				blockSides.add(new Line2D.Double(blockPoints.get(0),blockPoints.get(2)));
 				blockSides.add(new Line2D.Double(blockPoints.get(1),blockPoints.get(3)));
@@ -649,7 +664,7 @@ public class forklift implements DomainGenerator{
 						vectorX = 2;
 						vectorY = 0;
 					}
-					
+
 					ArrayList<Point2D.Double> projBlock = new ArrayList<Point2D.Double>();
 					for(Point2D corner: blockPoints){
 						double vectorDotCorner = vectorX * corner.getX() + vectorY * corner.getY();
@@ -657,7 +672,7 @@ public class forklift implements DomainGenerator{
 						double scalar = vectorDotCorner / vectorDotVector;
 						projBlock.add(new Point2D.Double(vectorX * scalar, vectorY * scalar ));
 					}
-					
+
 					ArrayList<Point2D.Double> projForklift = new ArrayList<Point2D.Double>();
 					for(Point2D corner: forkliftPoints){
 						double vectorDotCorner = vectorX * corner.getX() + vectorY * corner.getY();
@@ -676,7 +691,7 @@ public class forklift implements DomainGenerator{
 						//System.out.println(" ");
 						//System.out.print(mag + " ");
 					}
-					
+
 					double blockMax = 0.0, blockMin = 80.0;
 					for(Point2D proj: projBlock){
 						double mag = Math.sqrt(proj.getX()*proj.getX() + proj.getY()*proj.getY());
@@ -686,7 +701,7 @@ public class forklift implements DomainGenerator{
 							blockMin = mag;
 						//System.out.println(mag);
 					}
-					if((blockMin > forkliftMin && blockMin < forkliftMax) || 
+					if((blockMin > forkliftMin && blockMin < forkliftMax) ||
 							(blockMax > forkliftMin && blockMax < forkliftMax)||
 							(forkliftMax > blockMin && forkliftMax < blockMax)||
 							(forkliftMin > blockMin && forkliftMin < blockMax)){
@@ -697,13 +712,18 @@ public class forklift implements DomainGenerator{
 					//System.out.println("Entered");
 					Point2D.Double blockCenter = new Point2D.Double(blockX + blockW/2, blockY + blockL/2);
 					if(Math.sqrt((Math.pow(blockCenter.getX() - x, 2) + Math.pow(blockCenter.getY() - y, 2))) <= 4){
-						return (FLBlock.FLBox)block;	
+						return (FLBlock.FLBox)block;
 					}
 				}
 			}
 			return null;
 		}
-		
+
+		@Override
+		public List<StateTransitionProb> stateTransitions(State s, Action a) {
+			return FullStateModel.Helper.deterministicTransition(this, s, a);
+		}
+
 	}
 	public static class BoxInArea extends PropositionalFunction{
 		public BoxInArea(String name){
@@ -720,11 +740,11 @@ public class forklift implements DomainGenerator{
 			Double farY = nearY+(Double)box.get(forklift.ATT_L);
 
 			if(farX < (Double)area.get(0)||
-			   nearX > (Double)area.get(1)||
-			   nearY > (Double)area.get(2)||
-			   farY < (Double)area.get(3))
+					nearX > (Double)area.get(1)||
+					nearY > (Double)area.get(2)||
+					farY < (Double)area.get(3))
 				return false;
-		return true;
+			return true;
 		}
 	}
 	public static class BoxesInArea extends PropositionalFunction{
@@ -732,7 +752,7 @@ public class forklift implements DomainGenerator{
 		public BoxesInArea(String name){
 			super(name, new String[]{CLASS_BOX});
 		}
-		
+
 		@Override
 		public boolean isTrue(OOState s, String... params) {
 			//System.out.println("Is it true?");
@@ -742,10 +762,10 @@ public class forklift implements DomainGenerator{
 			for( ObjectInstance b : boxes)
 				if (!pf.isTrue(s, ((FLBlock.FLBox)b).name()))
 					allInArea = false;
-				
+
 			//System.out.println(allInArea);
 			return allInArea;
 		}
 	}
-	
+
 }

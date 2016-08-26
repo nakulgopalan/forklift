@@ -14,20 +14,28 @@ import static edu.umbc.cs.forklift.forklift.CLASS_BLOCK;
 import java.util.Arrays;
 import java.util.List;
 
+import burlap.mdp.core.oo.state.OOStateUtilities;
 import burlap.mdp.core.oo.state.ObjectInstance;
 
 public class FLBlock implements ObjectInstance {
 
-	protected double x;
-	protected double y;
-	protected double yLength;
-	protected double xWidth;
-	protected String name;
-	protected String className;
+	/**
+	 * x and y co-ordinates are the bottom x corner.
+	 */
+	public double x;
+	public double y;
+	public double yLength;
+	public double xWidth;
+	public String name;
+	public String className;
 
-	
-	protected List<Object> keys = Arrays.<Object>asList(ATT_X, ATT_Y, ATT_W, ATT_L);
-	
+
+	public static List<Object> keys = Arrays.<Object>asList(ATT_X, ATT_Y, ATT_W, ATT_L);
+
+	public FLBlock(){
+
+	}
+
 	public FLBlock(double x, double y, double yLength, double xWidth, String name) {
 		this.x = x;
 		this.y = y;
@@ -84,8 +92,15 @@ public class FLBlock implements ObjectInstance {
 
 		return copy();
 	}
+
+	public String toString() {
+		return OOStateUtilities.objectInstanceToString(this);
+	}
+
+
 	public static class FLBox extends FLBlock{
-		boolean onGround;
+		public boolean onGround;
+		public FLBox(){};
 		public FLBox(double x, double y, double yLength, double xWidth, String name, boolean onGround) {
 			super(x, y, yLength, xWidth, name);
 			super.className = CLASS_BOX;
@@ -137,6 +152,7 @@ public class FLBlock implements ObjectInstance {
 		}
 	}
 	public static class FLWall extends FLBlock{
+		public FLWall(){}
 		public FLWall(double x, double y, double yLength, double xWidth, String name) {
 			super(x, y, yLength, xWidth, name);
 			super.className = CLASS_WALL;
